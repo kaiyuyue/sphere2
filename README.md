@@ -180,6 +180,14 @@ Results are saved to `workspace/editing/<model>`.
 
 ---
 
+### Sphere Encoder Family
+
+- [Sphere Encoder](https://arxiv.org/abs/2602.15030): the original model, image generation in a spherical latent space.
+- [SP³](https://man-sean.github.io/sp3-website/) (NeurIPS 2026): a fast generative prior for image restoration.
+- [Efficient Image Synthesis with Sphere Latent Encoder](https://arxiv.org/abs/2605.15592): a few-step loop implemented in latent space.
+
+---
+
 ### Contact
 
 Suggestions, issues and pull requests are all very welcome.
