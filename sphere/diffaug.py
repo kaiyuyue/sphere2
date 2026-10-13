@@ -67,6 +67,17 @@ def rand_hflip(x):
     return torch.flip(x, dims=[-1])
 
 
+# knobs of the lat-con re-encode hook (train.py --lat_con_use_diffaug, overridden
+# per key by --lat_con_aug_set). independent of the score loss's "augment"
+LAT_CON_AUG_DEFAULTS = {
+    "type": "diffaug",  # diffaug | flip
+    "translation_prob": 1.0,
+    "flip_prob": 0.5,
+    "translation_ratio": 0.0625,
+    "translation_padding": "reflect",  # zeros | reflect | circular
+}
+
+
 class DiffAug:
     """
     per-module differentiable augmentation
@@ -88,6 +99,33 @@ class DiffAug:
             ),
             ("flip", rand_hflip, flip_prob),
         ]
+
+    @classmethod
+    def from_config(cls, cfg: dict):
+        """
+        build from a flat dict of knobs, the keys of LAT_CON_AUG_DEFAULTS (the
+        same ones as the score config's "augment" block). type="flip" is the
+        flip-only shorthand: it flips every sample when flip_prob is left at 0
+
+        cfg : {type, translation_prob, flip_prob, translation_ratio, translation_padding}
+        out : DiffAug
+        """
+        if str(cfg.get("type", "diffaug")) == "flip":
+            fp = float(cfg.get("flip_prob", 0.0))
+            return cls(flip_prob=fp if fp > 0 else 1.0)
+        return cls(
+            translation_prob=float(cfg.get("translation_prob", 0.0)),
+            flip_prob=float(cfg.get("flip_prob", 0.0)),
+            translation_ratio=float(cfg.get("translation_ratio", 0.125)),
+            translation_padding=str(cfg.get("translation_padding", "zeros")),
+        )
+
+    @property
+    def is_active(self) -> bool:
+        """
+        false when every module has probability 0, i.e. aug(x) is x
+        """
+        return any(prob > 0 for _, _, prob in self.pipeline)
 
     def __str__(self):
         active = ", ".join(

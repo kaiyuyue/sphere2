@@ -21,7 +21,7 @@ set -- "${POSITIONAL_ARGS[@]}"
 
 # ========================= E2E Training ==========================
 
-IMAGE_SIZE=512  # 256 or 512
+IMAGE_SIZE=256  # 256 or 512
 
 ./run.sh \
   --dist_mode=$DIST_MODE \
@@ -75,7 +75,8 @@ IMAGE_SIZE=512  # 256 or 512
   --latent_resolution low \
   --lat_con_loss_weight 0.1 \
   --lat_con_apply_regime hi \
-  --lat_con_use_diffaug False \
+  --lat_con_use_diffaug True \
+  --lat_con_aug_set flip_prob=0.5 translation_prob=1.0 translation_ratio=0.0625 translation_padding=reflect \
   --lat_con_freeze_encoder False \
   --load_pretrained_encoder dinov3-vits16plus-pretrain-lvd1689m \
   --pretrained_encoder_train_last_n_blocks 0 \

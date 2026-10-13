@@ -2,11 +2,11 @@
 
 <p>
   <a href="https://arxiv.org/abs/2610.02208">
-    <img src="https://img.shields.io/badge/arXiv-2610.02208-b31b1b.svg?style=flat-square" /></a>
+    <img src="https://img.shields.io/badge/arXiv-2610.02208-c62828.svg?style=flat-square" /></a>
   <a href="https://huggingface.co/tomg-group-umd/sphere2">
     <img src="https://img.shields.io/badge/Hugging%20Face-Models-ffcc4d.svg?style=flat-square" /></a>
   <a href="./LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-007ec6.svg?style=flat-square" /></a>
+    <img src="https://img.shields.io/badge/License-MIT-1e88e5.svg?style=flat-square" /></a>
 </p>
 
 Official code and models for [Sphere Encoder 2](https://arxiv.org/abs/2610.02208), a standalone autoencoder that generates images by decoding random points from a high-dimensional latent sphere.

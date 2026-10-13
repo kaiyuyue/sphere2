@@ -166,7 +166,8 @@ parser.add_argument("--pix_recon_dist_apply_regime", type=str, default="lo", cho
 parser.add_argument("--pix_recon_perc_loss_weight", type=float, default=0.0)
 parser.add_argument("--lat_con_loss_weight", type=float, default=0.0)
 parser.add_argument("--lat_con_freeze_encoder", type=str2bool, default=False)
-parser.add_argument("--lat_con_use_diffaug", type=str2bool, default=False)
+parser.add_argument("--lat_con_use_diffaug", type=str2bool, default=False, help="augment the decoded images before the lat-con re-encode (DiffAug) while the target stays un-augmented; knobs are LAT_CON_AUG_DEFAULTS in sphere/diffaug.py, independent of score.augment")
+parser.add_argument("--lat_con_aug_set", type=str, nargs="+", default=[], metavar="KEY=VALUE", help="per-key overrides of the lat-con DiffAug, e.g. --lat_con_aug_set flip_prob=0.5 translation_ratio=0.0625")
 parser.add_argument("--lat_con_apply_regime", type=str, default="hi", choices=["hi", "lo", "all"])
 # --- regime
 parser.add_argument("--weight_anchor_loss", type=str2bool, default=False)
@@ -511,7 +512,7 @@ def main(args):
     # build loss
 
     # apply CLI overrides to the score-matching config before it is consumed
-    if args.use_score or args.lat_con_use_diffaug:
+    if args.use_score:
         apply_dotted_overrides(score_config, args.score_set, log_mark="score_config")
 
     # the FD loss judges in the encoder space: the CLS token keeps the
@@ -619,10 +620,20 @@ def main(args):
     model = build_model(args, for_train=True)
     model.to(device=device, memory_format=torch.channels_last)
 
-    # optional differentiable augmentation for the re-encode.
+    # optional differentiable augmentation of the decoded images, two
+    # independent paths with their own knobs:
+    #   model.lat_con_augs : augments the shared re-encode inside the model's
+    #       forward (the decoded images, before enc(x)); only the lat-con loss
+    #       consumes it, via --lat_con_use_diffaug, to decohere the
+    #       position-locked enc-dec echo. knobs: LAT_CON_AUG_DEFAULTS of
+    #       sphere/diffaug.py, overridden per key by --lat_con_aug_set
+    #   score aug : the score loss reads pixels through its own frozen
+    #       featurizer, so it takes its aug (score.augment) on the score loss
+    #       itself, handled below
+    from sphere.diffaug import LAT_CON_AUG_DEFAULTS, DiffAug
+
     score_aug_cfg = score_config["score"].get("augment", {})
 
-    # the lat-con branch opts in explicitly, regardless of the score loss
     _lat_con_wants_hook = args.lat_con_loss_weight > 0 and args.lat_con_use_diffaug
     _dino_wants_aug = (
         args.use_score
@@ -631,28 +642,25 @@ def main(args):
         and loss_fn.score_match.space in ("dino", "convnext")
     )
 
-    score_augs = None
-    if _lat_con_wants_hook or _dino_wants_aug:
-        from sphere.score.diffaug import DiffAug
-
-        aug_type = score_aug_cfg.get("type", "diffaug")
-        if aug_type == "flip":
-            _fp = float(score_aug_cfg.get("flip_prob", 0.0))
-            score_augs = DiffAug(flip_prob=_fp if _fp > 0 else 1.0)
-        else:
-            score_augs = DiffAug(
-                translation_prob=float(score_aug_cfg.get("translation_prob", 0.0)),
-                flip_prob=float(score_aug_cfg.get("flip_prob", 0.0)),
-                translation_ratio=float(score_aug_cfg.get("translation_ratio", 0.125)),
-                translation_padding=str(
-                    score_aug_cfg.get("translation_padding", "zeros")
-                ),
-            )
-
-    # ---- attach to the model-side re-encode hook (the lat-con branch) ----
+    # ---- lat-con re-encode hook: v = enc(aug(x)) against the un-augmented
+    # target, the decohering is intended ----
     if _lat_con_wants_hook:
-        model.score_augs = score_augs
-        logger.info(f"re-encode augmentation (model.score_augs): {score_augs}")
+        lat_con_aug_cfg = dict(LAT_CON_AUG_DEFAULTS)
+        # unknown keys raise inside apply_dotted_overrides
+        apply_dotted_overrides(
+            lat_con_aug_cfg, args.lat_con_aug_set, log_mark="lat_con_aug_set"
+        )
+        model.lat_con_augs = DiffAug.from_config(lat_con_aug_cfg)
+        assert model.lat_con_augs.is_active, (
+            "--lat_con_use_diffaug True but every --lat_con_aug_set probability "
+            "is 0: the hook would be an identity"
+        )
+        logger.info(
+            f"lat-con re-encode augmentation (model.lat_con_augs): "
+            f"{model.lat_con_augs}"
+        )
+
+    score_augs = DiffAug.from_config(score_aug_cfg) if _dino_wants_aug else None
 
     # ---- pixel score spaces (dino/convnext): attach the aug to the score
     if _dino_wants_aug:

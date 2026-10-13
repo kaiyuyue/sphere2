@@ -233,8 +233,9 @@ class G1(nn.Module):  # first gear
         self.lat_con_freeze_enc = latent_consistency_freeze_encoder
         self.use_lat_con = use_latent_consistency
 
-        # differentiable pixel augmentations for latent consistency loss
-        self.score_augs = None
+        # differentiable pixel augmentation of the lat-con re-encode, attached
+        # by train.py (--lat_con_use_diffaug, knobs from --lat_con_aug_set)
+        self.lat_con_augs = None
 
         # training noise angles are uniform in [0, max_angle_deg]
         self.max_angle_deg = noise_sigma_max_angle
@@ -344,8 +345,8 @@ class G1(nn.Module):  # first gear
 
         # latent consistency loss part
         if self.use_lat_con:
-            if self.score_augs is not None:
-                x = self.score_augs.aug(x)
+            if self.lat_con_augs is not None:
+                x = self.lat_con_augs.aug(x)
 
             if ema_model is not None and self.lat_con_use_ema:
                 enc_mod = ema_model.module.encoder
