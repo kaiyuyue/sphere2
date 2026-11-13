@@ -13,7 +13,7 @@ Official code and models for [Sphere Encoder 2](https://arxiv.org/abs/2610.02208
 It is the sequel to [Sphere Encoder](https://arxiv.org/abs/2602.15030).
 
 <p>
-  <img src="assets/teaser.jpg" width="640" alt="Curated 1-step samples from Sphere Encoder 2 on ImageNet 512x512" />
+  <img src="assets/teaser.jpg" alt="Curated 1-step samples from Sphere Encoder 2 on ImageNet 512x512" />
   <br />
   <sub><i>Curated 1-step generation without CFG on ImageNet 512×512.</i></sub>
 </p>
